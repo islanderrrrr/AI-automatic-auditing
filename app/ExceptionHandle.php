@@ -51,7 +51,9 @@ class ExceptionHandle extends Handle
     public function render($request, Throwable $e): Response
     {
         // 如果是 AJAX 请求或期望 JSON 响应，返回 JSON 格式错误
-        if ($request->isAjax() || $request->acceptJson()) {
+        if ($request->isAjax() || 
+            $request->acceptJson() || 
+            strpos($request->header('Content-Type', ''), 'application/json') !== false) {
             
             $code = 500;
             if ($e instanceof HttpException) {

@@ -415,7 +415,8 @@ class AiAnalysisService
         // 使用单次遍历统计未转义的引号数量 - O(n)
         $quoteCount = 0;
         $len = strlen($json);
-        for ($i = 0; $i < $len; $i++) {
+        $i = 0;
+        while ($i < $len) {
             if ($json[$i] === '"') {
                 // 向前计算连续的反斜杠数量
                 $backslashCount = 0;
@@ -429,6 +430,7 @@ class AiAnalysisService
                     $quoteCount++;
                 }
             }
+            $i++;
         }
         
         // 如果引号数量是奇数，说明在字符串中间截断，需要闭合字符串
@@ -437,6 +439,7 @@ class AiAnalysisService
         }
         
         // 补全缺失的括号，使用 max 确保不会出现负数
+        // 先关闭数组括号，再关闭对象括号，保持正确的嵌套结构
         $json .= str_repeat(']', max(0, $openBrackets - $closeBrackets));
         $json .= str_repeat('}', max(0, $openBraces - $closeBraces));
         
