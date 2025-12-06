@@ -405,23 +405,35 @@ class AiAnalysisService
     {
         $json = trim($json);
         
-        // 计算括号数量
-        $openBraces = substr_count($json, '{');
-        $closeBraces = substr_count($json, '}');
-        $openBrackets = substr_count($json, '[');
-        $closeBrackets = substr_count($json, ']');
-        
-        // 检查是否在字符串中间截断（查找未闭合的引号）
-        // 使用单次遍历，真正的 O(n) 算法
+        // 单次遍历统计所有需要的信息 - O(n)
+        $openBraces = 0;
+        $closeBraces = 0;
+        $openBrackets = 0;
+        $closeBrackets = 0;
         $quoteCount = 0;
         $len = strlen($json);
         $i = 0;
+        
         while ($i < $len) {
-            if ($json[$i] === '\\') {
+            $char = $json[$i];
+            if ($char === '\\') {
                 // 遇到反斜杠，跳过下一个字符（它被转义了）
-                $i += 2;
-            } elseif ($json[$i] === '"') {
+                // 检查边界，防止数组越界
+                $i += ($i + 1 < $len) ? 2 : 1;
+            } elseif ($char === '"') {
                 $quoteCount++;
+                $i++;
+            } elseif ($char === '{') {
+                $openBraces++;
+                $i++;
+            } elseif ($char === '}') {
+                $closeBraces++;
+                $i++;
+            } elseif ($char === '[') {
+                $openBrackets++;
+                $i++;
+            } elseif ($char === ']') {
+                $closeBrackets++;
                 $i++;
             } else {
                 $i++;
