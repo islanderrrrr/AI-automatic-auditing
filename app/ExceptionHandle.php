@@ -53,7 +53,7 @@ class ExceptionHandle extends Handle
         // 如果是 AJAX 请求或期望 JSON 响应，返回 JSON 格式错误
         if ($request->isAjax() || 
             $request->acceptJson() || 
-            strpos($request->header('Content-Type', ''), 'application/json') !== false) {
+            strpos($request->header('Accept', ''), 'application/json') !== false) {
             
             $code = 500;
             if ($e instanceof HttpException) {
