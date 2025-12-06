@@ -249,10 +249,14 @@ class AiAnalysisService
         $prompt .= '    "references": ["参考链接1", "参考链接2"]' ."\n";
         $prompt .= "}\n\n";
         $prompt .= "注意事项：\n";
-        $prompt .= "1.severity_score 为 1-10 的整数\n";
-        $prompt .= "2.risk_level 只能是 critical、high、medium、low 之一\n";
+        $prompt .= "1. severity_score 为 1-10 的整数\n";
+        $prompt .= "2. risk_level 只能是 critical、high、medium、low 之一\n";
         $prompt .= "3. 使用中文回答\n";
-        $prompt .= "4.只返回 JSON，不要有任何其他内容\n";
+        $prompt .= "4. 只返回 JSON，不要有任何其他内容\n";
+        $prompt .= "5. description 不超过 200 字\n";
+        $prompt .= "6. impact 不超过 100 字\n";
+        $prompt .= "7. fix_suggestion 不超过 300 字\n";
+        $prompt .= "8. code_example 不超过 10 行代码\n";
 
         return $prompt;
     }
@@ -302,7 +306,7 @@ class AiAnalysisService
                 ]
             ],
             'temperature' => 0.2,
-            'max_tokens' => 4000
+            'max_tokens' => 8000
         ];
         
         $ch = curl_init($this->apiUrl);
@@ -374,6 +378,13 @@ class AiAnalysisService
             if (preg_match('/\{[\s\S]*\}/s', $content, $matches)) {
                 $jsonStr = $matches[0];
                 $analysis = json_decode($jsonStr, true);
+                
+                // 检测并尝试修复截断的 JSON
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    // 尝试补全截断的 JSON
+                    $jsonStr = $this->tryFixTruncatedJson($jsonStr);
+                    $analysis = json_decode($jsonStr, true);
+                }
             }
         }
         
@@ -385,6 +396,43 @@ class AiAnalysisService
         
         // 确保返回的数据结构完整
         return $this->normalizeAnalysis($analysis, $content);
+    }
+    
+    /**
+     * 尝试修复截断的 JSON
+     */
+    private function tryFixTruncatedJson($json)
+    {
+        $json = trim($json);
+        
+        // 计算括号数量
+        $openBraces = substr_count($json, '{');
+        $closeBraces = substr_count($json, '}');
+        $openBrackets = substr_count($json, '[');
+        $closeBrackets = substr_count($json, ']');
+        
+        // 检查是否在字符串中间截断（查找未闭合的引号）
+        $inString = false;
+        $lastChar = '';
+        for ($i = strlen($json) - 1; $i >= 0; $i--) {
+            $char = $json[$i];
+            if ($char === '"' && $lastChar !== '\\') {
+                $inString = !$inString;
+                break;
+            }
+            $lastChar = $char;
+        }
+        
+        // 如果在字符串中间截断，先闭合字符串
+        if ($inString) {
+            $json .= '"';
+        }
+        
+        // 补全缺失的括号
+        $json .= str_repeat(']', $openBrackets - $closeBrackets);
+        $json .= str_repeat('}', $openBraces - $closeBraces);
+        
+        return $json;
     }
     
     /**
