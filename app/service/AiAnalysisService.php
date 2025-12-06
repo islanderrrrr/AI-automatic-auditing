@@ -412,25 +412,35 @@ class AiAnalysisService
         $closeBrackets = substr_count($json, ']');
         
         // 检查是否在字符串中间截断（查找未闭合的引号）
-        $inString = false;
-        $lastChar = '';
-        for ($i = strlen($json) - 1; $i >= 0; $i--) {
+        // 从前往后遍历，统计未转义的引号数量
+        $quoteCount = 0;
+        $len = strlen($json);
+        for ($i = 0; $i < $len; $i++) {
             $char = $json[$i];
-            if ($char === '"' && $lastChar !== '\\') {
-                $inString = !$inString;
-                break;
+            // 检查是否是未转义的引号
+            if ($char === '"') {
+                // 向前检查是否被转义（需要检查连续的反斜杠数量）
+                $backslashCount = 0;
+                $j = $i - 1;
+                while ($j >= 0 && $json[$j] === '\\') {
+                    $backslashCount++;
+                    $j--;
+                }
+                // 如果反斜杠数量是偶数（包括0），则引号未被转义
+                if ($backslashCount % 2 === 0) {
+                    $quoteCount++;
+                }
             }
-            $lastChar = $char;
         }
         
-        // 如果在字符串中间截断，先闭合字符串
-        if ($inString) {
+        // 如果引号数量是奇数，说明在字符串中间截断，需要闭合字符串
+        if ($quoteCount % 2 !== 0) {
             $json .= '"';
         }
         
-        // 补全缺失的括号
-        $json .= str_repeat(']', $openBrackets - $closeBrackets);
-        $json .= str_repeat('}', $openBraces - $closeBraces);
+        // 补全缺失的括号，使用 max 确保不会出现负数
+        $json .= str_repeat(']', max(0, $openBrackets - $closeBrackets));
+        $json .= str_repeat('}', max(0, $openBraces - $closeBraces));
         
         return $json;
     }
