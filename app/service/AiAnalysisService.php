@@ -249,10 +249,14 @@ class AiAnalysisService
         $prompt .= '    "references": ["参考链接1", "参考链接2"]' ."\n";
         $prompt .= "}\n\n";
         $prompt .= "注意事项：\n";
-        $prompt .= "1.severity_score 为 1-10 的整数\n";
-        $prompt .= "2.risk_level 只能是 critical、high、medium、low 之一\n";
+        $prompt .= "1. severity_score 为 1-10 的整数\n";
+        $prompt .= "2. risk_level 只能是 critical、high、medium、low 之一\n";
         $prompt .= "3. 使用中文回答\n";
-        $prompt .= "4.只返回 JSON，不要有任何其他内容\n";
+        $prompt .= "4. 只返回 JSON，不要有任何其他内容\n";
+        $prompt .= "5. description 不超过 200 字\n";
+        $prompt .= "6. impact 不超过 100 字\n";
+        $prompt .= "7. fix_suggestion 不超过 300 字\n";
+        $prompt .= "8. code_example 不超过 10 行代码\n";
 
         return $prompt;
     }
@@ -302,7 +306,7 @@ class AiAnalysisService
                 ]
             ],
             'temperature' => 0.2,
-            'max_tokens' => 4000
+            'max_tokens' => 8000
         ];
         
         $ch = curl_init($this->apiUrl);
@@ -374,6 +378,13 @@ class AiAnalysisService
             if (preg_match('/\{[\s\S]*\}/s', $content, $matches)) {
                 $jsonStr = $matches[0];
                 $analysis = json_decode($jsonStr, true);
+                
+                // 检测并尝试修复截断的 JSON
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    // 尝试补全截断的 JSON
+                    $jsonStr = $this->tryFixTruncatedJson($jsonStr);
+                    $analysis = json_decode($jsonStr, true);
+                }
             }
         }
         
@@ -385,6 +396,68 @@ class AiAnalysisService
         
         // 确保返回的数据结构完整
         return $this->normalizeAnalysis($analysis, $content);
+    }
+    
+    /**
+     * 尝试修复截断的 JSON
+     * 
+     * 使用单次遍历算法 (O(n))：
+     * - 统计未转义的引号数量以检测截断的字符串
+     * - 统计未闭合的括号和花括号
+     * - 正确处理转义序列（如 \\、\"等）
+     */
+    private function tryFixTruncatedJson($json)
+    {
+        $json = trim($json);
+        
+        // 单次遍历统计所有需要的信息 - O(n)
+        $openBraces = 0;
+        $closeBraces = 0;
+        $openBrackets = 0;
+        $closeBrackets = 0;
+        $quoteCount = 0;  // 只统计未转义的引号
+        $len = strlen($json);
+        $i = 0;
+        
+        while ($i < $len) {
+            $char = $json[$i];
+            if ($char === '\\') {
+                // 遇到反斜杠，跳过下一个被转义的字符
+                // 这样可以正确处理 \\ 和 \" 等转义序列
+                // 注意：被跳过的引号不会被计入 $quoteCount，这是正确的
+                $i += ($i + 1 < $len) ? 2 : 1;
+            } elseif ($char === '"') {
+                // 只有未转义的引号才会被计数
+                $quoteCount++;
+                $i++;
+            } elseif ($char === '{') {
+                $openBraces++;
+                $i++;
+            } elseif ($char === '}') {
+                $closeBraces++;
+                $i++;
+            } elseif ($char === '[') {
+                $openBrackets++;
+                $i++;
+            } elseif ($char === ']') {
+                $closeBrackets++;
+                $i++;
+            } else {
+                $i++;
+            }
+        }
+        
+        // 如果引号数量是奇数，说明在字符串中间截断，需要闭合字符串
+        if ($quoteCount % 2 !== 0) {
+            $json .= '"';
+        }
+        
+        // 补全缺失的括号，使用 max 确保不会出现负数
+        // 先关闭数组括号，再关闭对象括号，保持正确的嵌套结构
+        $json .= str_repeat(']', max(0, $openBrackets - $closeBrackets));
+        $json .= str_repeat('}', max(0, $openBraces - $closeBraces));
+        
+        return $json;
     }
     
     /**

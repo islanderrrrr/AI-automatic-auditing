@@ -4,6 +4,7 @@ namespace app\controller;
 use app\BaseController;
 use app\service\AiAnalysisService;
 use think\facade\Db;
+use think\facade\Log;
 use think\facade\View;
 use think\Request;
 
@@ -169,7 +170,12 @@ class AiAnalysis extends BaseController
                 ]
             ]);
         } catch (\Exception $e) {
-            return json(['code' => 500, 'msg' => $e->getMessage()]);
+            Log::error('AI 分析异常: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+            return json([
+                'code' => 500, 
+                'msg' => 'AI 分析失败: ' . $e->getMessage(),
+                'data' => null
+            ]);
         }
     }
     
