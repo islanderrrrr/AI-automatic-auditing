@@ -51,11 +51,7 @@ class ExceptionHandle extends Handle
     public function render($request, Throwable $e): Response
     {
         // 如果是 AJAX 请求或期望 JSON 响应，返回 JSON 格式错误
-        if ($request->isAjax() || 
-            (method_exists($request, 'acceptJson') && $request->acceptJson()) ||
-            strpos($request->header('Accept', ''), 'application/json') !== false ||
-            strpos($request->header('Content-Type', ''), 'application/json') !== false) {
-            
+        if ($this->isJsonRequest($request)) {
             $code = 500;
             if ($e instanceof HttpException) {
                 $code = $e->getStatusCode();
@@ -70,5 +66,36 @@ class ExceptionHandle extends Handle
 
         // 其他错误交给系统处理
         return parent::render($request, $e);
+    }
+    
+    /**
+     * 检查是否为 JSON 请求
+     *
+     * @param \think\Request $request
+     * @return bool
+     */
+    private function isJsonRequest($request): bool
+    {
+        // AJAX 请求
+        if ($request->isAjax()) {
+            return true;
+        }
+        
+        // 期望 JSON 响应（使用 acceptJson 方法，如果存在）
+        if (method_exists($request, 'acceptJson') && $request->acceptJson()) {
+            return true;
+        }
+        
+        // 检查 Accept 头
+        if (strpos($request->header('Accept', ''), 'application/json') !== false) {
+            return true;
+        }
+        
+        // 检查 Content-Type 头（某些客户端可能设置此头）
+        if (strpos($request->header('Content-Type', ''), 'application/json') !== false) {
+            return true;
+        }
+        
+        return false;
     }
 }

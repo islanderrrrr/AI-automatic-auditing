@@ -400,6 +400,11 @@ class AiAnalysisService
     
     /**
      * 尝试修复截断的 JSON
+     * 
+     * 使用单次遍历算法 (O(n))：
+     * - 统计未转义的引号数量以检测截断的字符串
+     * - 统计未闭合的括号和花括号
+     * - 正确处理转义序列（如 \\、\"等）
      */
     private function tryFixTruncatedJson($json)
     {
@@ -410,17 +415,19 @@ class AiAnalysisService
         $closeBraces = 0;
         $openBrackets = 0;
         $closeBrackets = 0;
-        $quoteCount = 0;
+        $quoteCount = 0;  // 只统计未转义的引号
         $len = strlen($json);
         $i = 0;
         
         while ($i < $len) {
             $char = $json[$i];
             if ($char === '\\') {
-                // 遇到反斜杠，跳过下一个字符（它被转义了）
-                // 检查边界，防止数组越界
+                // 遇到反斜杠，跳过下一个被转义的字符
+                // 这样可以正确处理 \\ 和 \" 等转义序列
+                // 注意：被跳过的引号不会被计入 $quoteCount，这是正确的
                 $i += ($i + 1 < $len) ? 2 : 1;
             } elseif ($char === '"') {
+                // 只有未转义的引号才会被计数
                 $quoteCount++;
                 $i++;
             } elseif ($char === '{') {
