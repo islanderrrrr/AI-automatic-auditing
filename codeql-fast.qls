@@ -1,0 +1,15 @@
+# 快速安全扫描套件
+- description: "快速安全扫描 - 仅高危漏洞"
+- queries: .
+- include:
+    kind:
+      - problem
+      - path-problem
+    tags contain: security
+    precision:
+      - high
+      - very-high
+- exclude:
+    query path:
+      - "**/ExternalAPIsUsedWithUntrustedData.ql"
+      - "**/Metrics/**"
