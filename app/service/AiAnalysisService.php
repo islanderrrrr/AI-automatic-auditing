@@ -412,25 +412,20 @@ class AiAnalysisService
         $closeBrackets = substr_count($json, ']');
         
         // 检查是否在字符串中间截断（查找未闭合的引号）
-        // 使用单次遍历统计未转义的引号数量 - O(n)
+        // 使用单次遍历，真正的 O(n) 算法
         $quoteCount = 0;
         $len = strlen($json);
         $i = 0;
         while ($i < $len) {
-            if ($json[$i] === '"') {
-                // 向前计算连续的反斜杠数量
-                $backslashCount = 0;
-                $j = $i - 1;
-                while ($j >= 0 && $json[$j] === '\\') {
-                    $backslashCount++;
-                    $j--;
-                }
-                // 如果反斜杠数量是偶数（包括0），则引号未被转义
-                if ($backslashCount % 2 === 0) {
-                    $quoteCount++;
-                }
+            if ($json[$i] === '\\') {
+                // 遇到反斜杠，跳过下一个字符（它被转义了）
+                $i += 2;
+            } elseif ($json[$i] === '"') {
+                $quoteCount++;
+                $i++;
+            } else {
+                $i++;
             }
-            $i++;
         }
         
         // 如果引号数量是奇数，说明在字符串中间截断，需要闭合字符串
